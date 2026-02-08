@@ -158,15 +158,7 @@ def build_1d_views(positions, route_meta, s3):
             'routes': route_list,
         })
 
-    # Also write 1D data as 1W (same live snapshot for now)
-    ward_summary_1w = dict(ward_summary)
-    ward_summary_1w['period'] = '1w'
-    s3.write_json('data/ward-summary-1w.json', ward_summary_1w)
-    for w in range(1, 9):
-        # Copy 1D route files to 1W
-        s3.copy_json(f'data/ward-{w}-routes-1d.json', f'data/ward-{w}-routes-1w.json')
-
-    logger.info(f'Built 1D/1W views: {len(positions)} positions across {len(ward_devs)} wards')
+    logger.info(f'Built 1D views: {len(positions)} positions across {len(ward_devs)} wards')
 
 
 def _avg_months(months):

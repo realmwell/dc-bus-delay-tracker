@@ -29,17 +29,3 @@ class S3IO:
             return json.loads(obj['Body'].read().decode('utf-8'))
         except Exception:
             return None
-
-    def copy_json(self, src_key, dest_key):
-        """Copy a JSON file within the same bucket."""
-        try:
-            self.s3.copy_object(
-                Bucket=self.bucket,
-                CopySource={'Bucket': self.bucket, 'Key': src_key},
-                Key=dest_key,
-                ContentType='application/json',
-                CacheControl='public, max-age=3600',
-                MetadataDirective='REPLACE',
-            )
-        except Exception as e:
-            logger.warning(f'Error copying {src_key} to {dest_key}: {e}')
