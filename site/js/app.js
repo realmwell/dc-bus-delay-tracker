@@ -85,7 +85,7 @@
                 var routes = routeData ? routeData.routes : [];
                 var meta = state.wardSummary ? {
                     days_covered: state.wardSummary.days_covered,
-                    has_historical: state.wardSummary.has_historical
+                    source: state.wardSummary.source
                 } : null;
                 UI.renderWardDetail(wardNumber, wardStats, routes, meta);
             });

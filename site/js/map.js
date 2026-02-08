@@ -65,21 +65,6 @@ var MapController = (function () {
         });
     }
 
-    function onMouseOver(e) {
-        var layer = e.target;
-        if (layer !== selectedLayer) {
-            layer.setStyle(highlightStyle());
-            layer.bringToFront();
-            if (selectedLayer) selectedLayer.bringToFront();
-        }
-    }
-
-    function onMouseOut(e) {
-        if (e.target !== selectedLayer) {
-            restoreLayerStyle(e.target);
-        }
-    }
-
     function onClick(e) {
         var layer = e.target;
 
@@ -90,7 +75,8 @@ var MapController = (function () {
 
         selectedLayer = layer;
         layer.setStyle(highlightStyle());
-        layer.bringToFront();
+        // No bringToFront — it reorders SVG elements and breaks
+        // subsequent taps on mobile (tap hits old top layer)
 
         var wardNum = layer.feature.properties.WARD;
         if (wardClickCallback) {
@@ -100,8 +86,6 @@ var MapController = (function () {
 
     function onEachFeature(feature, layer) {
         layer.on({
-            mouseover: onMouseOver,
-            mouseout: onMouseOut,
             click: onClick
         });
 
@@ -117,7 +101,9 @@ var MapController = (function () {
         map = L.map(containerId, {
             zoomControl: true,
             scrollWheelZoom: true,
-            tap: true
+            // Disable legacy tap handler — it interferes with ward clicks
+            // on mobile by synthesizing events on wrong layers after bringToFront
+            tap: false
         }).setView(DC_CENTER, DC_ZOOM);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

@@ -29,12 +29,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldRawData
-            Prefix: raw/
-            Status: Enabled
-            ExpirationInDays: 1826
       Tags:
         - Key: Project
           Value: dc-bus-tracker

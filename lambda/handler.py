@@ -1,8 +1,9 @@
 """Lambda handler for the DC Bus Delay Tracker.
 
 Triggered daily by EventBridge. Fetches WMATA bus positions,
-maps them to DC wards, archives raw data, and writes
-pre-aggregated JSON files to S3 for the static frontend.
+maps them to DC wards, and writes pre-aggregated JSON files
+to S3 for the static frontend. No raw data is stored — each
+run fully replaces all output files.
 """
 
 import os
@@ -11,7 +12,7 @@ from datetime import datetime, timezone
 
 from wmata_client import WMATAClient
 from geo_utils import point_in_ward
-from aggregator import aggregate_all_periods
+from aggregator import build_1d_views, build_historical_views
 from stop_ward_mapper import StopWardMapper
 from s3_io import S3IO
 
@@ -51,22 +52,25 @@ def handler(event, context):
                 'trip': pos.get('TripID', ''),
             })
 
-    logger.info(f'Mapped {len(enriched)} positions to DC wards (out of {len(positions)} total)')
+    logger.info(f'Mapped {len(enriched)} positions to DC wards')
 
-    # 4. Archive today's raw data
-    s3.save_daily_snapshot(today, enriched, len(positions))
-
-    # 5. Load historical data for aggregation
-    historical = s3.load_historical_snapshots(today, max_days=1825)
-
-    # 6. Refresh route metadata if needed
+    # 4. Refresh route metadata if needed
     route_meta = mapper.ensure_route_metadata()
 
-    # 7. Aggregate and write output files
-    aggregate_all_periods(historical, route_meta, s3)
+    # 5. Build 1D views (per-ward from live data)
+    build_1d_views(enriched, route_meta, s3)
 
-    # 8. Write status file
-    s3.write_last_updated(today, len(positions), len(enriched), len(historical))
+    # 6. Build historical period views (from WMATA monthly report data)
+    build_historical_views(s3)
+
+    # 7. Write status file
+    s3.write_json('data/last-updated.json', {
+        'last_run': datetime.now(timezone.utc).isoformat(),
+        'status': 'success',
+        'date': today,
+        'bus_positions_fetched': len(positions),
+        'dc_positions': len(enriched),
+    })
 
     msg = f'Processed {len(enriched)} DC bus positions for {today}'
     logger.info(msg)

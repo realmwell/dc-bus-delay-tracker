@@ -38,6 +38,7 @@ var UI = (function () {
         initElements();
         panelTitle.textContent = 'Ward ' + wardNumber;
 
+        var isHistorical = summaryMeta && summaryMeta.source === 'wmata_report';
         var html = '';
 
         if (wardStats) {
@@ -45,52 +46,65 @@ var UI = (function () {
             html += '<div class="stat">' +
                 '<span class="stat-value">' + wardStats.pct_on_time.toFixed(0) + '%</span>' +
                 '<span class="stat-label">On Time</span></div>';
-            html += '<div class="stat">' +
-                '<span class="stat-value ' + getDelayClass(wardStats.avg_delay) + '">' +
-                wardStats.avg_delay.toFixed(1) + ' min</span>' +
-                '<span class="stat-label">Avg Delay</span></div>';
-            html += '<div class="stat">' +
-                '<span class="stat-value">' + wardStats.sample_count.toLocaleString() + '</span>' +
-                '<span class="stat-label">Observations</span></div>';
+
+            // avg_delay is 0.0 for historical (WMATA report) data — show N/A
+            if (isHistorical) {
+                html += '<div class="stat">' +
+                    '<span class="stat-value">' + wardStats.pct_late.toFixed(0) + '%</span>' +
+                    '<span class="stat-label">Late</span></div>';
+                html += '<div class="stat">' +
+                    '<span class="stat-value">' + wardStats.pct_early.toFixed(0) + '%</span>' +
+                    '<span class="stat-label">Early</span></div>';
+            } else {
+                html += '<div class="stat">' +
+                    '<span class="stat-value ' + getDelayClass(wardStats.avg_delay) + '">' +
+                    wardStats.avg_delay.toFixed(1) + ' min</span>' +
+                    '<span class="stat-label">Avg Delay</span></div>';
+                html += '<div class="stat">' +
+                    '<span class="stat-value">' + wardStats.sample_count.toLocaleString() + '</span>' +
+                    '<span class="stat-label">Observations</span></div>';
+            }
             html += '</div>';
         }
 
-        if (summaryMeta && summaryMeta.days_covered) {
+        if (isHistorical) {
+            html += '<p class="data-note">System-wide average from WMATA Service Excellence Report</p>';
+        } else if (summaryMeta && summaryMeta.days_covered) {
             html += '<p class="data-note">' + summaryMeta.days_covered + ' day' +
-                (summaryMeta.days_covered !== 1 ? 's' : '') + ' of data';
-            if (summaryMeta.has_historical) {
-                html += ' (includes WMATA historical estimates)';
-            }
-            html += '</p>';
+                (summaryMeta.days_covered !== 1 ? 's' : '') + ' of live data</p>';
         }
 
-        html += '<div class="routes-header">Routes in Ward ' + wardNumber + '</div>';
+        if (!isHistorical) {
+            html += '<div class="routes-header">Routes in Ward ' + wardNumber + '</div>';
 
-        if (routes && routes.length > 0) {
-            html += '<div class="table-wrap">';
-            html += '<table class="route-table">';
-            html += '<thead><tr>' +
-                '<th>Route</th>' +
-                '<th>Avg Delay</th>' +
-                '<th>On Time</th>' +
-                '<th>Obs.</th>' +
-                '</tr></thead>';
-            html += '<tbody>';
+            if (routes && routes.length > 0) {
+                html += '<div class="table-wrap">';
+                html += '<table class="route-table">';
+                html += '<thead><tr>' +
+                    '<th>Route</th>' +
+                    '<th>Avg Delay</th>' +
+                    '<th>On Time</th>' +
+                    '<th>Obs.</th>' +
+                    '</tr></thead>';
+                html += '<tbody>';
 
-            for (var i = 0; i < routes.length; i++) {
-                var r = routes[i];
-                var cls = getDelayClass(r.avg_delay);
-                html += '<tr>' +
-                    '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
-                    '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
-                    '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
-                    '<td>' + r.sample_count.toLocaleString() + '</td>' +
-                    '</tr>';
+                for (var i = 0; i < routes.length; i++) {
+                    var r = routes[i];
+                    var cls = getDelayClass(r.avg_delay);
+                    html += '<tr>' +
+                        '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
+                        '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
+                        '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
+                        '<td>' + r.sample_count.toLocaleString() + '</td>' +
+                        '</tr>';
+                }
+
+                html += '</tbody></table></div>';
+            } else {
+                html += '<p class="no-data">No route data available for this period.</p>';
             }
-
-            html += '</tbody></table></div>';
         } else {
-            html += '<p class="no-data">No route data available for this period.</p>';
+            html += '<p class="no-data">Route-level data not available for historical periods.<br>Per-ward, per-route data is shown on the 1D and 1W views.</p>';
         }
 
         panelContent.innerHTML = html;
