@@ -15,16 +15,18 @@ var MapController = (function () {
 
     /**
      * Color scale based on on-time percentage.
-     * 100% = bright green, lower = progressively red.
+     * 100% = bright green, 50% or below = deep red.
+     * Scale compressed to 50-100% range so differences are visible.
      */
     function getColor(pctOnTime) {
         if (pctOnTime === null || pctOnTime === undefined) return '#cccccc';
-        if (pctOnTime >= 90) return '#1a9850';
-        if (pctOnTime >= 80) return '#66bd63';
-        if (pctOnTime >= 70) return '#a6d96a';
-        if (pctOnTime >= 60) return '#fee08b';
-        if (pctOnTime >= 50) return '#fdae61';
-        if (pctOnTime >= 40) return '#f46d43';
+        if (pctOnTime >= 95) return '#1a9850';
+        if (pctOnTime >= 90) return '#66bd63';
+        if (pctOnTime >= 85) return '#a6d96a';
+        if (pctOnTime >= 80) return '#d9ef8b';
+        if (pctOnTime >= 75) return '#fee08b';
+        if (pctOnTime >= 70) return '#fdae61';
+        if (pctOnTime >= 60) return '#f46d43';
         return '#d73027';
     }
 
@@ -112,6 +114,11 @@ var MapController = (function () {
             tap: true
         }).setView(DC_CENTER, DC_ZOOM);
 
+        // Create a custom pane for labels that doesn't capture pointer events
+        var labelPane = map.createPane('labelPane');
+        labelPane.style.zIndex = 650;
+        labelPane.style.pointerEvents = 'none';
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 16,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -151,10 +158,11 @@ var MapController = (function () {
                 layer.setStyle({ fillColor: color });
             }
 
-            // Add permanent label showing % on time
+            // Add permanent label showing % on time in non-interactive pane
             if (info && pctOnTime !== null) {
                 var center = layer.getBounds().getCenter();
                 var label = L.marker(center, {
+                    pane: 'labelPane',
                     icon: L.divIcon({
                         className: 'ward-pct-label',
                         html: '<span>' + Math.round(pctOnTime) + '%</span>',
