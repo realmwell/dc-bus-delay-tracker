@@ -74,37 +74,33 @@ var UI = (function () {
                 (summaryMeta.days_covered !== 1 ? 's' : '') + ' of live data</p>';
         }
 
-        if (!isHistorical) {
-            html += '<div class="routes-header">Routes in Ward ' + wardNumber + '</div>';
+        html += '<div class="routes-header">Routes in Ward ' + wardNumber + '</div>';
 
-            if (routes && routes.length > 0) {
-                html += '<div class="table-wrap">';
-                html += '<table class="route-table">';
-                html += '<thead><tr>' +
-                    '<th>Route</th>' +
-                    '<th>Avg Delay</th>' +
-                    '<th>On Time</th>' +
-                    '<th>Obs.</th>' +
-                    '</tr></thead>';
-                html += '<tbody>';
+        if (routes && routes.length > 0) {
+            html += '<div class="table-wrap">';
+            html += '<table class="route-table">';
+            html += '<thead><tr>' +
+                '<th>Route</th>' +
+                '<th>Avg Delay</th>' +
+                '<th>On Time</th>' +
+                '<th>Obs.</th>' +
+                '</tr></thead>';
+            html += '<tbody>';
 
-                for (var i = 0; i < routes.length; i++) {
-                    var r = routes[i];
-                    var cls = getDelayClass(r.avg_delay);
-                    html += '<tr>' +
-                        '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
-                        '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
-                        '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
-                        '<td>' + r.sample_count.toLocaleString() + '</td>' +
-                        '</tr>';
-                }
-
-                html += '</tbody></table></div>';
-            } else {
-                html += '<p class="no-data">No route data available for this period.</p>';
+            for (var i = 0; i < routes.length; i++) {
+                var r = routes[i];
+                var cls = getDelayClass(r.avg_delay);
+                html += '<tr>' +
+                    '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
+                    '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
+                    '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
+                    '<td>' + r.sample_count.toLocaleString() + '</td>' +
+                    '</tr>';
             }
+
+            html += '</tbody></table></div>';
         } else {
-            html += '<p class="no-data">Route-level data not available for historical periods.<br>Per-ward, per-route data is shown on the 1D view.</p>';
+            html += '<p class="no-data">No route data available for this period.</p>';
         }
 
         panelContent.innerHTML = html;
