@@ -68,7 +68,7 @@ var UI = (function () {
         }
 
         if (isHistorical) {
-            html += '<p class="data-note">System-wide average from WMATA Service Excellence Report</p>';
+            html += '<p class="data-note">Per-route averages from WMATA Annual Line Performance Report</p>';
         } else if (summaryMeta && summaryMeta.days_covered) {
             html += '<p class="data-note">' + summaryMeta.days_covered + ' day' +
                 (summaryMeta.days_covered !== 1 ? 's' : '') + ' of live data</p>';
@@ -79,23 +79,40 @@ var UI = (function () {
         if (routes && routes.length > 0) {
             html += '<div class="table-wrap">';
             html += '<table class="route-table">';
-            html += '<thead><tr>' +
-                '<th>Route</th>' +
-                '<th>Avg Delay</th>' +
-                '<th>On Time</th>' +
-                '<th>Obs.</th>' +
-                '</tr></thead>';
-            html += '<tbody>';
 
-            for (var i = 0; i < routes.length; i++) {
-                var r = routes[i];
-                var cls = getDelayClass(r.avg_delay);
-                html += '<tr>' +
-                    '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
-                    '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
-                    '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
-                    '<td>' + r.sample_count.toLocaleString() + '</td>' +
-                    '</tr>';
+            if (isHistorical) {
+                // Historical: show Route and On Time % only (no avg delay or obs)
+                html += '<thead><tr>' +
+                    '<th>Route</th>' +
+                    '<th>On Time</th>' +
+                    '</tr></thead>';
+                html += '<tbody>';
+                for (var i = 0; i < routes.length; i++) {
+                    var r = routes[i];
+                    html += '<tr>' +
+                        '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
+                        '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
+                        '</tr>';
+                }
+            } else {
+                // Live: show full detail
+                html += '<thead><tr>' +
+                    '<th>Route</th>' +
+                    '<th>Avg Delay</th>' +
+                    '<th>On Time</th>' +
+                    '<th>Obs.</th>' +
+                    '</tr></thead>';
+                html += '<tbody>';
+                for (var i = 0; i < routes.length; i++) {
+                    var r = routes[i];
+                    var cls = getDelayClass(r.avg_delay);
+                    html += '<tr>' +
+                        '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
+                        '<td class="' + cls + '">' + r.avg_delay.toFixed(1) + ' min</td>' +
+                        '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
+                        '<td>' + r.sample_count.toLocaleString() + '</td>' +
+                        '</tr>';
+                }
             }
 
             html += '</tbody></table></div>';
