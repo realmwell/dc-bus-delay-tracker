@@ -104,7 +104,7 @@ var UI = (function () {
                 html += '<p class="no-data">No route data available for this period.</p>';
             }
         } else {
-            html += '<p class="no-data">Route-level data not available for historical periods.<br>Per-ward, per-route data is shown on the 1D and 1W views.</p>';
+            html += '<p class="no-data">Route-level data not available for historical periods.<br>Per-ward, per-route data is shown on the 1D view.</p>';
         }
 
         panelContent.innerHTML = html;
