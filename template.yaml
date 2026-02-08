@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: DC Bus Delay Tracker - static site with daily WMATA data pipeline
+
+Parameters:
+  WMATAApiKey:
+    Type: String
+    NoEcho: true
+    Description: WMATA Developer API key (register at developer.wmata.com)
+  AlertEmail:
+    Type: String
+    Description: Email address for billing alerts
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 512
+    Runtime: python3.13
+
+Resources:
+
+  # ==================== S3 Bucket ====================
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'dc-bus-tracker-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldRawData
+            Prefix: raw/
+            Status: Enabled
+            ExpirationInDays: 1826
+      Tags:
+        - Key: Project
+          Value: dc-bus-tracker
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource:
+              - !Sub '${WebsiteBucket.Arn}/site/*'
+              - !Sub '${WebsiteBucket.Arn}/data/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+  # ==================== CloudFront ====================
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'dc-bus-tracker-oac-${AWS::AccountId}'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SiteCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub 'dc-bus-tracker-site-cache-${AWS::AccountId}'
+        DefaultTTL: 86400
+        MaxTTL: 86400
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Comment: DC Bus Delay Tracker
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: S3SiteOrigin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            OriginPath: /site
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+          - Id: S3DataOrigin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          TargetOriginId: S3SiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref SiteCachePolicy
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: /data/*
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            TargetOriginId: S3DataOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            Compress: true
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+
+  # ==================== Lambda ====================
+  DataCollectorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dc-bus-tracker-collector
+      CodeUri: lambda/
+      Handler: handler.handler
+      Runtime: python3.13
+      MemorySize: 512
+      Timeout: 300
+      Environment:
+        Variables:
+          WMATA_API_KEY: !Ref WMATAApiKey
+          BUCKET_NAME: !Ref WebsiteBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref WebsiteBucket
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 5 * * ? *)
+            Description: Daily bus data collection at 5AM UTC (midnight ET)
+            Enabled: true
+
+  # ==================== Billing Alarm ====================
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: dc-bus-tracker-billing-alarm
+
+  AlarmSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  BillingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: dc-bus-tracker-cost-alarm
+      AlarmDescription: Alert when estimated charges exceed $5
+      Namespace: AWS/Billing
+      MetricName: EstimatedCharges
+      Dimensions:
+        - Name: Currency
+          Value: USD
+      Statistic: Maximum
+      Period: 21600
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+Outputs:
+  WebsiteURL:
+    Description: CloudFront distribution URL
+    Value: !Sub 'https://${Distribution.DomainName}'
+  BucketName:
+    Description: S3 bucket name
+    Value: !Ref WebsiteBucket
+  DistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref Distribution

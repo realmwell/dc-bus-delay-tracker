@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Bus Delay Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+    <link rel="stylesheet" href="css/style.css?v=3" />
+</head>
+<body>
+    <header>
+        <h1>DC Bus Delay Tracker</h1>
+        <p class="subtitle">Schedule adherence by ward &middot; Updated daily</p>
+    </header>
+
+    <main>
+        <div id="time-filters" class="filter-bar">
+            <button class="filter-btn active" data-period="1d">1D</button>
+            <button class="filter-btn" data-period="1w">1W</button>
+            <button class="filter-btn" data-period="1m">1M</button>
+            <button class="filter-btn" data-period="3m">3M</button>
+            <button class="filter-btn" data-period="6m">6M</button>
+            <button class="filter-btn" data-period="1y">1Y</button>
+            <button class="filter-btn" data-period="5y">5Y</button>
+        </div>
+
+        <div class="content-area">
+            <div id="map-container">
+                <div id="map"></div>
+                <div id="legend">
+                    <span class="legend-label">Low On-Time</span>
+                    <div class="legend-bar"></div>
+                    <span class="legend-label">100% On-Time</span>
+                </div>
+            </div>
+
+            <div id="detail-panel" class="panel hidden">
+                <div class="panel-header">
+                    <h2 id="panel-title">Ward</h2>
+                    <button id="panel-close" class="close-btn" aria-label="Close">&times;</button>
+                </div>
+                <div id="panel-content"></div>
+            </div>
+        </div>
+
+        <div id="info-bar">
+            <span id="last-updated">Loading data...</span>
+            <span id="data-source">Source: WMATA API</span>
+        </div>
+    </main>
+
+    <footer>
+        <p>Built by <a href="https://www.linkedin.com/in/maxwellgreenberg/" target="_blank" rel="noopener">Max Greenberg</a> &copy; 2026</p>
+        <p class="footer-sources">
+            Data sources:
+            <a href="https://developer.wmata.com/" target="_blank" rel="noopener">WMATA Developer API</a> (real-time bus positions) &middot;
+            <a href="https://www.wmata.com/about/records/scorecard.cfm" target="_blank" rel="noopener">WMATA Service Excellence Report</a> (historical on-time performance) &middot;
+            <a href="https://opendata.dc.gov/datasets/wards-from-2022" target="_blank" rel="noopener">Open Data DC</a> (ward boundaries)
+        </p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="js/data.js?v=3"></script>
+    <script src="js/map.js?v=3"></script>
+    <script src="js/ui.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
+</body>
+</html>

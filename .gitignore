@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# SAM build artifacts
+.aws-sam/
+
+# Environment and secrets
+.env
+samconfig.toml
+
+# Data imports (large files)
+data-import/*.xlsx
+data-import/*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
