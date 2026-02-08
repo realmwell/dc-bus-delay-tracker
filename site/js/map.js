@@ -8,7 +8,6 @@ var MapController = (function () {
     var wardClickCallback = null;
     var selectedLayer = null;
     var wardColors = {};  // Track current fill color per ward
-    var wardLabels = {};  // Permanent % on-time labels per ward
 
     var DC_CENTER = [38.9072, -77.0369];
     var DC_ZOOM = 12;
@@ -105,6 +104,13 @@ var MapController = (function () {
             mouseout: onMouseOut,
             click: onClick
         });
+
+        // Bind a permanent tooltip for the % label (updated in colorWards)
+        layer.bindTooltip('', {
+            permanent: true,
+            direction: 'center',
+            className: 'ward-pct-label'
+        });
     }
 
     function init(containerId, wardGeoJSON) {
@@ -113,11 +119,6 @@ var MapController = (function () {
             scrollWheelZoom: true,
             tap: true
         }).setView(DC_CENTER, DC_ZOOM);
-
-        // Create a custom pane for labels that doesn't capture pointer events
-        var labelPane = map.createPane('labelPane');
-        labelPane.style.zIndex = 650;
-        labelPane.style.pointerEvents = 'none';
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 16,
@@ -135,14 +136,6 @@ var MapController = (function () {
     function colorWards(wardData) {
         if (!geojsonLayer) return;
 
-        // Remove old labels
-        Object.keys(wardLabels).forEach(function (k) {
-            if (wardLabels[k]) {
-                map.removeLayer(wardLabels[k]);
-            }
-        });
-        wardLabels = {};
-
         geojsonLayer.eachLayer(function (layer) {
             var wardNum = String(layer.feature.properties.WARD);
             var info = wardData[wardNum];
@@ -150,29 +143,13 @@ var MapController = (function () {
             var color = getColor(pctOnTime);
 
             wardColors[wardNum] = color;
+            layer.setStyle({ fillColor: color });
 
-            if (layer === selectedLayer) {
-                // Keep highlight but update underlying color for restore
-                layer.setStyle({ fillColor: color });
-            } else {
-                layer.setStyle({ fillColor: color });
-            }
-
-            // Add permanent label showing % on time in non-interactive pane
+            // Update the permanent tooltip with the on-time %
             if (info && pctOnTime !== null) {
-                var center = layer.getBounds().getCenter();
-                var label = L.marker(center, {
-                    pane: 'labelPane',
-                    icon: L.divIcon({
-                        className: 'ward-pct-label',
-                        html: '<span>' + Math.round(pctOnTime) + '%</span>',
-                        iconSize: [50, 28],
-                        iconAnchor: [25, 14]
-                    }),
-                    interactive: false
-                });
-                label.addTo(map);
-                wardLabels[wardNum] = label;
+                layer.setTooltipContent(Math.round(pctOnTime) + '%');
+            } else {
+                layer.setTooltipContent('');
             }
         });
     }
