@@ -42,18 +42,21 @@ var UI = (function () {
         var html = '';
 
         if (wardStats) {
+            // Use 1 decimal for historical (small differences between periods),
+            // integer for live data (larger natural variance)
+            var pctDecimals = isHistorical ? 1 : 0;
             html += '<div class="ward-stats">';
             html += '<div class="stat">' +
-                '<span class="stat-value">' + wardStats.pct_on_time.toFixed(0) + '%</span>' +
+                '<span class="stat-value">' + wardStats.pct_on_time.toFixed(pctDecimals) + '%</span>' +
                 '<span class="stat-label">On Time</span></div>';
 
-            // avg_delay is 0.0 for historical (WMATA report) data — show N/A
+            // avg_delay is 0.0 for historical (WMATA report) data — show Late/Early instead
             if (isHistorical) {
                 html += '<div class="stat">' +
-                    '<span class="stat-value">' + wardStats.pct_late.toFixed(0) + '%</span>' +
+                    '<span class="stat-value">' + wardStats.pct_late.toFixed(pctDecimals) + '%</span>' +
                     '<span class="stat-label">Late</span></div>';
                 html += '<div class="stat">' +
-                    '<span class="stat-value">' + wardStats.pct_early.toFixed(0) + '%</span>' +
+                    '<span class="stat-value">' + wardStats.pct_early.toFixed(pctDecimals) + '%</span>' +
                     '<span class="stat-label">Early</span></div>';
             } else {
                 html += '<div class="stat">' +
@@ -91,7 +94,7 @@ var UI = (function () {
                     var r = routes[i];
                     html += '<tr>' +
                         '<td class="route-id">' + escapeHtml(r.route_id) + '</td>' +
-                        '<td>' + r.pct_on_time.toFixed(0) + '%</td>' +
+                        '<td>' + r.pct_on_time.toFixed(1) + '%</td>' +
                         '</tr>';
                 }
             } else {

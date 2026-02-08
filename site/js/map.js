@@ -132,8 +132,9 @@ var MapController = (function () {
             layer.setStyle({ fillColor: color });
 
             // Update the permanent tooltip with the on-time %
+            // Show one decimal so small period-to-period differences are visible
             if (info && pctOnTime !== null) {
-                layer.setTooltipContent(Math.round(pctOnTime) + '%');
+                layer.setTooltipContent(pctOnTime.toFixed(1) + '%');
             } else {
                 layer.setTooltipContent('');
             }
