@@ -285,6 +285,26 @@ def build_historical_views(s3):
             for w in wards:
                 ward_routes.setdefault(w, []).append((api_route, otp))
 
+    # Compute each ward's raw average OTP from ALPR route data (FY2025 baseline).
+    # This gives relative performance between wards.
+    ward_raw_otp = {}
+    for w in range(1, 9):
+        routes_in_ward = ward_routes.get(w, [])
+        if routes_in_ward:
+            ward_raw_otp[w] = sum(otp for _, otp in routes_in_ward) / len(routes_in_ward)
+
+    # Compute the overall ALPR baseline (average across all ward averages)
+    if ward_raw_otp:
+        alpr_baseline = sum(ward_raw_otp.values()) / len(ward_raw_otp)
+    else:
+        alpr_baseline = 75.0  # fallback
+
+    # Compute each ward's relative factor: how it compares to the ALPR baseline
+    # e.g., if Ward 3 has 66% and baseline is 73%, factor = 66/73 = 0.904
+    ward_factors = {}
+    for w, raw in ward_raw_otp.items():
+        ward_factors[w] = raw / alpr_baseline if alpr_baseline > 0 else 1.0
+
     # Define which months to include for each period
     periods = {
         '1m': data[-1:],
@@ -299,7 +319,10 @@ def build_historical_views(s3):
         if not sys_avg:
             continue
 
-        # Build ward summary with per-ward OTP derived from route mix
+        # Build ward summary: apply each ward's relative factor to the
+        # period-specific system average. This ensures:
+        # 1. Wards differ from each other (route mix)
+        # 2. Periods differ from each other (WMATA monthly data)
         ward_summary = {
             'period': period_key,
             'generated_at': now.isoformat(),
@@ -310,13 +333,10 @@ def build_historical_views(s3):
         }
 
         for w in range(1, 9):
-            routes_in_ward = ward_routes.get(w, [])
-            if routes_in_ward:
-                # Average OTP across routes serving this ward
-                avg_otp = sum(otp for _, otp in routes_in_ward) / len(routes_in_ward)
-                # Scale early/late proportionally relative to system average
-                scale = avg_otp / sys_avg['pct_on_time'] if sys_avg['pct_on_time'] > 0 else 1.0
-                remaining = 100.0 - avg_otp
+            if w in ward_factors:
+                # Scale the system average by ward's relative factor
+                ward_otp = min(sys_avg['pct_on_time'] * ward_factors[w], 99.9)
+                remaining = 100.0 - ward_otp
                 sys_remaining = sys_avg['pct_late'] + sys_avg['pct_early']
                 if sys_remaining > 0:
                     late_share = sys_avg['pct_late'] / sys_remaining
@@ -328,7 +348,7 @@ def build_historical_views(s3):
                 ward_summary['wards'][str(w)] = {
                     'avg_delay': 0.0,
                     'median_delay': 0.0,
-                    'pct_on_time': round(avg_otp, 1),
+                    'pct_on_time': round(ward_otp, 1),
                     'pct_late': round(remaining * late_share, 1),
                     'pct_early': round(remaining * early_share, 1),
                     'sample_count': sys_avg['total_timepoints'] // 8,
@@ -346,16 +366,19 @@ def build_historical_views(s3):
 
         s3.write_json(f'data/ward-summary-{period_key}.json', ward_summary)
 
-        # Write per-ward route detail files with individual route OTP
+        # Write per-ward route detail files with route OTP scaled to period
         for w in range(1, 9):
             routes_in_ward = ward_routes.get(w, [])
             route_list = []
-            for route_id, otp in routes_in_ward:
+            for route_id, alpr_otp in routes_in_ward:
+                # Scale each route's OTP by the period's system avg vs ALPR baseline
+                period_scale = sys_avg['pct_on_time'] / alpr_baseline if alpr_baseline > 0 else 1.0
+                scaled_otp = min(alpr_otp * period_scale, 99.9)
                 meta = route_meta.get(route_id, {})
                 route_list.append({
                     'route_id': route_id,
                     'route_name': meta.get('name', route_id),
-                    'pct_on_time': float(otp),
+                    'pct_on_time': round(scaled_otp, 1),
                     'avg_delay': 0.0,
                     'sample_count': 0,
                 })
@@ -371,7 +394,9 @@ def build_historical_views(s3):
             })
 
         logger.info(
-            f'Built {period_key} view: per-ward OTP from {sum(len(v) for v in ward_routes.values())} route-ward pairs'
+            f'Built {period_key} view: sys_avg={sys_avg["pct_on_time"]}%, '
+            f'per-ward range {min(float(v["pct_on_time"]) for v in ward_summary["wards"].values()):.1f}%-'
+            f'{max(float(v["pct_on_time"]) for v in ward_summary["wards"].values()):.1f}%'
         )
 
 
